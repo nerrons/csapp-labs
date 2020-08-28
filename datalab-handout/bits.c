@@ -143,7 +143,9 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  // xor = (x & ~y) | (~x & y)
+  // xor = ~(x & y) & ~(~x & ~y)
+  return ~(x & y) & ~(~x & ~y);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -152,9 +154,7 @@ int bitXor(int x, int y) {
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
-
+  return 1 << 31;
 }
 //2
 /*
@@ -165,7 +165,19 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+  // Tmax + (Tmax + 1) is all 1's; flip the all-one to get zero; if we get zero, then the number passes the criterion.
+  int criterion = !~(x + (x + 1));
+
+  // Only two numbers satisfy the criterion above: -1 and Tmax, because the sign bit must be changed by the plus-one operation.
+  // (Tmax + 1) has a different sign than Tmax, and 0 has a different sign than -1.
+  //
+  // You might want to solve 2x + 1 = Umax (32 1's) to see another solution that doesn't involve overflowing, but that
+  // equation has the root Tmax. So only -1 and Tmax passes the criterion.
+  //
+  // Now we just need to make sure our x is not -1, then it must be Tmax.
+  int not_neg_one = !!(x + 1);
+
+  return criterion & not_neg_one;
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +188,9 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  int submask = 0x55; // 01010101
+  int mask = (submask << 24) + (submask << 16) + (submask << 8) + submask;
+  return !(~(x | mask));
 }
 /* 
  * negate - return -x 
@@ -186,7 +200,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return ~x + 1;
 }
 //3
 /* 
@@ -199,7 +213,17 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  int lower = 0x2F;    // lower < x    --> lower  - x < 0
+  int higher = 0x39;   // x =< higher  --> higher - x >= 0
+  int neg_x = ~x + 1;
+  int sign_mask = 1 << 31;
+
+  int lower_minus_x = lower + neg_x;
+  int higher_minus_x = higher + neg_x;
+  int greater_than_lower = !!(lower_minus_x & sign_mask);  // lower - x  <  =
+  int smaller_than_higher = !(higher_minus_x & sign_mask); // higher - x >= 0
+
+  return greater_than_lower & smaller_than_higher;
 }
 /* 
  * conditional - same as x ? y : z 
@@ -209,7 +233,9 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  int success = !!x;
+  int success_mask = (success << 31) >> 31;
+  return (y & success_mask) | (z & ~success_mask);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -219,7 +245,14 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  // x <= y --->  y - x >= 0
+  int x_is_neg = (x >> 31) & 1;
+  int y_is_neg = (y >> 31) & 1;
+
+  int neg_x = ~x + 1;
+  int y_minus_x = y + neg_x;
+  int ge_than_zero = !(y_minus_x >> 31);
+  return (x_is_neg & !y_is_neg) | (!(x_is_neg ^ y_is_neg) & ge_than_zero);
 }
 //4
 /* 
@@ -231,7 +264,8 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  int neg_x = ~x + 1;
+  return (~(x | neg_x) >> 31) & 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
